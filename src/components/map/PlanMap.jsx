@@ -231,6 +231,13 @@ const FILL_TARGET = 0.85;
    closed. Set false to keep the satellite and accept the limit. */
 const DEEP_ZOOM_ROADMAP = true;
 
+/* Shows a small readout on screen after every pick: the zoom the code
+   asked for, the zoom the map actually reached, the map type, how much
+   of the screen width the plot fills, and the deepest satellite zoom
+   Google has at that spot. Phones have no console, so this is how to
+   see why a pick stops short. Turn it off before customers see it. */
+const ZOOM_DEBUG = true;
+
 /* The vertical budget is squashed by cos(tilt). Floored so a camera
    tilted right over cannot drive the fit to nothing. */
 const MIN_CT = 0.35;
@@ -555,6 +562,11 @@ export default function PlanMap({
   /* the map type to put back when the plot is closed, set only while
      the plain map is standing in for a clamped satellite */
   const prevMapTypeRef = useRef(null);
+
+  /* for the ZOOM_DEBUG readout */
+  const reqZRef = useRef(null);
+  const imgMaxRef = useRef('?');
+  const [dbg, setDbg] = useState('');
 
   /* the wall and dimension SVGs, written to directly rather than
      re-rendered — see paintWalls / paintDims */
@@ -1131,6 +1143,7 @@ export default function PlanMap({
 
     const z1 = f.z;
     const { aim } = f;
+    reqZRef.current = z1;
 
     const c0 = m.getCenter();
     if (!c0) return;
@@ -1272,6 +1285,24 @@ export default function PlanMap({
     const r = node.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return;
 
+    if (ZOOM_DEBUG) {
+      try {
+        const c = m.getCenter();
+        if (maps && maps.MaxZoomService && c) {
+          new maps.MaxZoomService().getMaxZoomAtLatLng(c, (res) => {
+            imgMaxRef.current = res && res.status === 'OK' ? String(res.zoom) : 'n/a';
+          });
+        }
+      } catch (err) { /* debug only */ }
+      setDbg(
+        `asked ${reqZRef.current == null ? '?' : reqZRef.current.toFixed(2)}`
+        + ` got ${(m.getZoom() || 0).toFixed(2)}`
+        + ` | ${m.getMapTypeId()}`
+        + ` | fill ${Math.round((r.width / el.clientWidth) * 100)}%w`
+        + ` | imagery max ${imgMaxRef.current}`,
+      );
+    }
+
     const availW = Math.max(
       el.clientWidth - Math.min(inset.left + inset.right, el.clientWidth * MAX_RESERVE_SHARE),
       160,
@@ -1318,7 +1349,7 @@ export default function PlanMap({
       }
     };
     flyRef.current = requestAnimationFrame(step);
-  }, [mapRef, camRef, inset, zoomAtPlot, overlayRef]);
+  }, [mapRef, camRef, inset, zoomAtPlot, overlayRef, maps]);
 
   useEffect(() => { calibrateRef.current = calibrateFill; }, [calibrateFill]);
 
@@ -3015,6 +3046,17 @@ export default function PlanMap({
           canStatus. */}
       {canStatus && (
         <StatusLegend plots={plots} status={status} show={statusOn} />
+      )}
+
+      {ZOOM_DEBUG && dbg && selected && (
+        <div style={{
+          position: 'absolute', zIndex: 30, left: 8, top: 100,
+          padding: '6px 8px', borderRadius: 6, pointerEvents: 'none',
+          background: 'rgba(0,0,0,0.78)', color: '#fff',
+          font: `600 11px/1.4 ${MONO}`, maxWidth: '90%',
+        }}>
+          {dbg}
+        </div>
       )}
 
       {error && (
