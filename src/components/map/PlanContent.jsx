@@ -187,6 +187,7 @@ const OPEN_IMAGE_BY_NAME = {
   'OPEN SPACE 1': space1,
   'OPEN SPACE 2': space1,
   'OPEN SPACE 3': space1,
+  'AMENITY SPACE': space1,
  'Nalha Chanelised': nala,
 };
 
