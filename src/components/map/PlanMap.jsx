@@ -238,6 +238,18 @@ const DEEP_ZOOM_ROADMAP = true;
    see why a pick stops short. Turn it off before customers see it. */
 const ZOOM_DEBUG = true;
 
+/* ── THE ZOOM A PICK LANDS ON ────────────────────────────────────
+   A fixed zoom level for every pick, on every device. 23.1 is very
+   deep: a plot about 18 m wide comes out roughly 900 CSS px across, so
+   on a phone (about 360 px wide) a wide plot will run past the edges
+   and you see its middle, not the whole plot. Pinch out, or press the
+   ⌂ button, to see all of it.
+
+   Set to null to go back to the automatic fit (FILL_TARGET). Anything
+   above what Google allows for the current background is handled by
+   DEEP_ZOOM_ROADMAP. */
+const PICK_ZOOM = 23.1;
+
 /* The vertical budget is squashed by cos(tilt). Floored so a camera
    tilted right over cannot drive the fit to nothing. */
 const MIN_CT = 0.35;
@@ -1090,7 +1102,9 @@ export default function PlanMap({
     /* metres per pixel wanted, then divided down to push in past the
        bare fit — see CLOSE_BOOST */
     const mpp = Math.max(needW / availW, needH / availH) / boost;
-    const fit = clamp(Math.log2(world / mpp), FLY_MIN_Z, FLY_MAX_Z);
+    const fit = PICK_ZOOM != null
+      ? clamp(PICK_ZOOM, FLY_MIN_Z, FLY_MAX_Z)
+      : clamp(Math.log2(world / mpp), FLY_MIN_Z, FLY_MAX_Z);
     const z = zForce == null ? fit : clamp(zForce, FLY_MIN_Z, MAP_MAX_Z);
 
     /* Aim at the middle of what is actually VISIBLE, not the middle of
@@ -1315,7 +1329,9 @@ export default function PlanMap({
       (availW * FILL_TARGET) / r.width,
       (availH * FILL_TARGET) / r.height,
     );
-    const dz = Math.log2(k);
+    const dz = PICK_ZOOM != null
+      ? PICK_ZOOM - (m.getZoom() || 18)
+      : Math.log2(k);
     if (!Number.isFinite(dz) || Math.abs(dz) < 0.03) return;
 
     const z0 = m.getZoom() || 18;
