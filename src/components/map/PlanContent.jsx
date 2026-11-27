@@ -167,6 +167,7 @@ import {
   KIND, MAPFONT, MONO, SANS, PLOT_STROKE, SEL_STROKE, SOCKET_FILL,
 } from '../../theme/tokens';
 import space1 from "../../assets/space.png"   // check filename: maybe "space1.jpeg"?
+import nala from "../../assets/nala.png"   // check filename: maybe "space1.jpeg"?
 
 
 /* EVERY plot on the layout, off-white. Change this one constant to
@@ -178,6 +179,7 @@ const OPEN_KIND = 'open_space';
 
 const OPEN_IMAGES = [
   space1,   // OPEN SPACE 1
+  nala,   // OPEN SPACE 2
  
 ];
 
@@ -185,6 +187,7 @@ const OPEN_IMAGE_BY_NAME = {
   'OPEN SPACE 1': space1,
   'OPEN SPACE 2': space1,
   'OPEN SPACE 3': space1,
+ 'Nalha Chanelised': nala,
 };
 
 /* Any feature whose label contains one of these words is treated as a
