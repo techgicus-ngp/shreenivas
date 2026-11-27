@@ -166,9 +166,8 @@ import {
   DIM_EDGE, DIM_FILL, DIM_INK,
   KIND, MAPFONT, MONO, SANS, PLOT_STROKE, SEL_STROKE, SOCKET_FILL,
 } from '../../theme/tokens';
-import space1 from "../../assets/space12.jpeg"   // check filename: maybe "space1.jpeg"?
-import space3 from "../../assets/space3.jpeg"
-import space2 from "../../assets/space2.jpeg"
+import space1 from "../../assets/space.png"   // check filename: maybe "space1.jpeg"?
+
 
 /* EVERY plot on the layout, off-white. Change this one constant to
    recolour the whole layout. Sale colours are the only other colour. */
@@ -179,8 +178,7 @@ const OPEN_KIND = 'open_space';
 
 const OPEN_IMAGES = [
   space1,   // OPEN SPACE 1
-  space2,   // OPEN SPACE 2
-  space3,   // OPEN SPACE 3
+ 
 ];
 
 const OPEN_IMAGE_BY_NAME = {
