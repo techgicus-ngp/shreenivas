@@ -236,7 +236,7 @@ const DEEP_ZOOM_ROADMAP = true;
    of the screen width the plot fills, and the deepest satellite zoom
    Google has at that spot. Phones have no console, so this is how to
    see why a pick stops short. Turn it off before customers see it. */
-const ZOOM_DEBUG = true;
+const ZOOM_DEBUG = false;
 
 /* ── THE ZOOM A PICK LANDS ON ────────────────────────────────────
    A fixed zoom level for every pick, on every device. 23.1 is very
@@ -257,7 +257,7 @@ const MIN_CT = 0.35;
 /* How far a pinch travels. 1.0 is one-to-one with the fingers, which
    feels sluggish on a plot you are trying to read a 12 m edge on; much
    above 2.5 and it overshoots past the imagery in one gesture. */
-const PINCH_GAIN = 2.5;
+const PINCH_GAIN = 1.8;
 
 /* One press of the on-screen zoom, in zoom levels, and how long it
    takes. A whole level per press is too coarse to land a plot where you
@@ -564,6 +564,11 @@ export default function PlanMap({
   const pinchRef = useRef(new Map());
   const pinchStartRef = useRef(null);
   const wheelRef = useRef(0);
+
+  /* smooth wheel zoom: where the zoom is heading, and the loop that
+     eases it there */
+  const wheelTargetRef = useRef(null);
+  const wheelRafRef = useRef(0);
   const flyRef = useRef(0);
   const winRef = useRef(null);
   const winPendingRef = useRef(false);   // FIX: one setWin in flight at a time
@@ -1248,6 +1253,8 @@ export default function PlanMap({
   /* the flight is the user's the moment they touch anything */
   const stopFly = useCallback(() => {
     cancelAnimationFrame(flyRef.current);
+    cancelAnimationFrame(wheelRafRef.current);
+    wheelTargetRef.current = null;
     flyingRef.current = false;
   }, []);
 
@@ -2756,23 +2763,43 @@ export default function PlanMap({
     const m = mapRef.current;
     if (!selected || !m) return;
     e.preventDefault();
+
+    /* Each notch moves a TARGET; a loop then eases the real zoom toward
+       it, so a wheel (or a trackpad pinch) glides instead of stepping.
+       Pixel and line wheels report different sizes, so the delta is
+       normalised and capped per event. */
+    const unit = e.deltaMode === 1 ? 16 : 1;
+    const base = wheelTargetRef.current != null
+      ? wheelTargetRef.current
+      : (m.getZoom() || 18);
+    const push = clamp(-e.deltaY * unit * (e.ctrlKey ? 0.012 : 0.004), -0.7, 0.7);
+    const target = clamp(base + push, FLY_MIN_Z, MAP_MAX_Z);
+
     stopFly();
-    wheelRef.current += e.deltaY;
-    if (Math.abs(wheelRef.current) < 12) return;
-
-    const currentZoom = m.getZoom() || 18;
-    const direction = wheelRef.current > 0 ? -1 : 1;
-    const step = Math.min(0.6, Math.max(0.18, Math.abs(wheelRef.current) / 120));
-    const nextZoom = clamp(
-      currentZoom + direction * step,
-      FLY_MIN_Z,
-      MAP_MAX_Z,
-    );
-
     manualZoomRef.current = true;
-    zoomAtPlot(nextZoom);
+    wheelTargetRef.current = target;
 
-    wheelRef.current = 0;
+    let last = null;
+    let still = 0;
+    const tick = () => {
+      const mm = mapRef.current;
+      const tgt = wheelTargetRef.current;
+      if (!mm || tgt == null || !selRef.current) { wheelTargetRef.current = null; return; }
+      const cur = mm.getZoom() || 18;
+      const d = tgt - cur;
+      /* arrived — or Google is refusing to go further (imagery limit),
+         in which case stop rather than push forever */
+      still = last != null && Math.abs(cur - last) < 0.0005 ? still + 1 : 0;
+      last = cur;
+      if (Math.abs(d) < 0.004 || still > 8) {
+        if (Math.abs(d) < 0.004) zoomAtPlot(tgt);
+        wheelTargetRef.current = null;
+        return;
+      }
+      zoomAtPlot(cur + d * 0.22);
+      wheelRafRef.current = requestAnimationFrame(tick);
+    };
+    wheelRafRef.current = requestAnimationFrame(tick);
   }, [selected, mapRef, stopFly, zoomAtPlot]);
 
   /* React registers its root `wheel` listener as PASSIVE (17 and
