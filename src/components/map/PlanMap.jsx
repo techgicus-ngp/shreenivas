@@ -583,6 +583,13 @@ export default function PlanMap({
   /* for the ZOOM_DEBUG readout */
   const reqZRef = useRef(null);
   const imgMaxRef = useRef('?');
+
+  /* the deepest satellite zoom at the picked spot (a number, or null
+     until Google answers) and when the last zoom-IN was asked for. The
+     camera loop uses the pair to swap background exactly where the
+     satellite runs out, and to swap it back when you zoom out. */
+  const imgMaxNumRef = useRef(null);
+  const zoomInAskRef = useRef(0);
   const [dbg, setDbg] = useState('');
 
   /* the wall and dimension SVGs, written to directly rather than
@@ -1164,6 +1171,16 @@ export default function PlanMap({
     const { aim } = f;
     reqZRef.current = z1;
 
+    /* ask Google how deep the satellite goes here, for the camera loop */
+    try {
+      if (maps && maps.MaxZoomService) {
+        new maps.MaxZoomService().getMaxZoomAtLatLng(
+          new maps.LatLng(aim.lat, aim.lng),
+          (res) => { if (res && res.status === 'OK') imgMaxNumRef.current = res.zoom; },
+        );
+      }
+    } catch (err) { /* falls back to the clamp check in calibrateFill */ }
+
     const c0 = m.getCenter();
     if (!c0) return;
     const a = { lat: c0.lat(), lng: c0.lng() };
@@ -1200,6 +1217,7 @@ export default function PlanMap({
         lng: a.lng + (aim.lng - a.lng) * t,
       };
       const z = z0 + (z1 - z0) * t;
+      if (z1 > z0) zoomInAskRef.current = Date.now();
       if (typeof m.moveCamera === 'function') {
         m.moveCamera({
           center,
@@ -1222,7 +1240,7 @@ export default function PlanMap({
       }
     };
     flyRef.current = requestAnimationFrame(step);
-  }, [mapRef, pickFrame, overlayRef]);
+  }, [mapRef, pickFrame, overlayRef, maps]);
 
   /* ── THE GESTURE FLAG ────────────────────────────────────────────
      One pair of calls around every native camera movement. While it is
@@ -1274,6 +1292,7 @@ export default function PlanMap({
   const zoomAtPlot = useCallback((z) => {
     const m = mapRef.current;
     if (!m) return;
+    if (z > (m.getZoom() || 0) + 0.0005) zoomInAskRef.current = Date.now();
     const f = pickFrame(selRef.current, z);
     if (!f) {
       if (typeof m.moveCamera === 'function') m.moveCamera({ zoom: clamp(z, FLY_MIN_Z, MAP_MAX_Z) });
@@ -1638,6 +1657,7 @@ export default function PlanMap({
         mapRef.current.setMapTypeId(prevMapTypeRef.current);
         prevMapTypeRef.current = null;
       }
+      imgMaxNumRef.current = null;
       return;
     }
     const reaim = flownRef.current === selected;
@@ -2119,6 +2139,27 @@ export default function PlanMap({
     let raf = 0;
     let last = '';
     const loop = () => {
+      /* ── satellite -> plain map exactly where the photo runs out ──
+         While a plot is raised and the zoom is being pushed in, the
+         moment the map sits at the satellite's deepest level, swap the
+         background so the zoom can carry on. Zooming back out below
+         that level puts the satellite back. Both happen mid-gesture, so
+         there is no jump after the flight has ended. */
+      if (DEEP_ZOOM_ROADMAP && selRef.current && imgMaxNumRef.current != null) {
+        const lim = imgMaxNumRef.current;
+        const zNow = map.getZoom() || 0;
+        const type = map.getMapTypeId();
+        const pushing = Date.now() - zoomInAskRef.current < 400;
+        if (type !== 'roadmap' && pushing && zNow >= lim - 0.05) {
+          prevMapTypeRef.current = prevMapTypeRef.current || type || 'hybrid';
+          map.setMapTypeId('roadmap');
+        } else if (type === 'roadmap' && prevMapTypeRef.current
+          && !pushing && zNow < lim - 0.2) {
+          map.setMapTypeId(prevMapTypeRef.current);
+          prevMapTypeRef.current = null;
+        }
+      }
+
       const c = map.getCenter();
       if (c) {
         const sig = [
