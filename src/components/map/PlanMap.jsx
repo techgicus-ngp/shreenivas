@@ -217,6 +217,20 @@ const MAX_RESERVE_SHARE = 0.35;
    (0.8, 0.85) for a tighter close-up; lower it if the figures clip. */
 const FILL_TARGET = 0.85;
 
+/* ── BEYOND THE SATELLITE'S LIMIT ────────────────────────────────
+   Google refuses to zoom a satellite/hybrid map past the deepest
+   imagery it has for that spot — often about zoom 20 on plots outside
+   big cities — and silently clamps every moveCamera to it, however
+   high this file asks. On a phone that is the plot stopping at a third
+   of the screen. The plan is drawn by THIS file, not by Google, so it
+   can go as deep as the screen needs; only the photo behind it cannot.
+
+   With this on, when the close-up is clamped the background switches
+   to the plain map for as long as the plot is raised (the plain map
+   zooms much deeper), and goes back to satellite when the plot is
+   closed. Set false to keep the satellite and accept the limit. */
+const DEEP_ZOOM_ROADMAP = true;
+
 /* The vertical budget is squashed by cos(tilt). Floored so a camera
    tilted right over cannot drive the fit to nothing. */
 const MIN_CT = 0.35;
@@ -537,6 +551,10 @@ export default function PlanMap({
 
   /* set below once zoomAtPlot exists; flyTo is defined before it */
   const calibrateRef = useRef(() => {});
+
+  /* the map type to put back when the plot is closed, set only while
+     the plain map is standing in for a clamped satellite */
+  const prevMapTypeRef = useRef(null);
 
   /* the wall and dimension SVGs, written to directly rather than
      re-rendered — see paintWalls / paintDims */
@@ -1273,6 +1291,18 @@ export default function PlanMap({
     const z1 = clamp(z0 + dz, FLY_MIN_Z, MAP_MAX_Z);
     if (Math.abs(z1 - z0) < 0.02) return;
 
+    /* Google clamped us: the satellite has nothing deeper here. Swap in
+       the plain map once, then measure and correct again. */
+    const deepen = (target) => {
+      if (!DEEP_ZOOM_ROADMAP || prevMapTypeRef.current) return;
+      if ((m.getZoom() || 0) >= target - 0.25) return;
+      prevMapTypeRef.current = m.getMapTypeId() || 'hybrid';
+      m.setMapTypeId('roadmap');
+      setTimeout(() => {
+        if (selRef.current) calibrateRef.current();
+      }, 150);
+    };
+
     const ms = reducedMotion() ? 1 : 260;
     flyingRef.current = true;
     const t0 = performance.now();
@@ -1284,6 +1314,7 @@ export default function PlanMap({
       } else {
         flyingRef.current = false;
         if (overlayRef.current) overlayRef.current.draw();
+        deepen(z1);
       }
     };
     flyRef.current = requestAnimationFrame(step);
@@ -1548,6 +1579,11 @@ export default function PlanMap({
       flownRef.current = null;
       manualZoomRef.current = false;
       topLockRef.current = false;
+      /* satellite back, if the plain map was standing in for it */
+      if (prevMapTypeRef.current && mapRef.current) {
+        mapRef.current.setMapTypeId(prevMapTypeRef.current);
+        prevMapTypeRef.current = null;
+      }
       return;
     }
     const reaim = flownRef.current === selected;
