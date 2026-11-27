@@ -183,8 +183,8 @@ const OPEN_IMAGES = [
 
 const OPEN_IMAGE_BY_NAME = {
   'OPEN SPACE 1': space1,
-  'OPEN SPACE 2': space2,
-  'OPEN SPACE 3': space3,
+  'OPEN SPACE 2': space1,
+  'OPEN SPACE 3': space1,
 };
 
 /* Any feature whose label contains one of these words is treated as a
