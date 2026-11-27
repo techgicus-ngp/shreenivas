@@ -155,9 +155,12 @@ const SPIN_TAPER_DEG = 60;
 
    IT IS TIED TO SCALE IN DimensionOverlay. That file's `off + txt` is
    how far the outermost figure reaches past the plot; this must cover
-   it. At SCALE 1.35 that is about 1.5 m, hence 1.6. Raise SCALE without
-   raising this and the figures are framed off the edge of the screen —
-   which looks like the close-up being too tight, and is not.
+   it. At SCALE 1.35 that is about 1.5 m, so 1.6 was the safe value.
+   It is now 0.8 so the plot fills more of the screen — if the outer
+   dimension figures are cut off at the screen edge, raise it back in
+   small steps (0.8 -> 1.0 -> 1.2 -> 1.6). Raise SCALE without raising
+   this and the figures are framed off the edge of the screen — which
+   looks like the close-up being too tight, and is not.
 
    LIFT_RESERVE is the fraction of the raised block's screen reach that
    the fit sets aside — of the reach AT THE CURRENT TILT, not at
@@ -174,7 +177,7 @@ const SPIN_TAPER_DEG = 60;
    share of a smaller frame. This is the knob to turn if a pick is not
    close enough; leave the fit maths alone.
 
-   SLACK keeps the drawing off the glass.
+   SLACK keeps the drawing off the glass. 1.0 = no extra margin.
 
    LIFT_BIAS sits the plot low by that fraction of the reserved reach so
    the RAISED block finishes centred instead of crowding the top edge.
@@ -185,16 +188,34 @@ const SPIN_TAPER_DEG = 60;
    Past about 21 the satellite imagery has no more detail and Google
    upscales it: the overlay and its dimensions stay sharp, the photo
    behind them goes soft. */
-const GUTTER = 1.6;
-const LIFT_RESERVE = 0.4;
-const CLOSE_BOOST = 1.4;          // desktop
-const CLOSE_BOOST_TABLET = 1.65;
-const CLOSE_BOOST_PHONE = 1.9;
-const SLACK = 1.02;
+const GUTTER = 0.8;
+const LIFT_RESERVE = 0.25;
+const CLOSE_BOOST = 1.9;          // desktop
+const CLOSE_BOOST_TABLET = 2.3;
+const CLOSE_BOOST_PHONE = 2.8;
+const SLACK = 1.0;
 const LIFT_BIAS = 0.5;
 const FLY_MIN_Z = 17;
 const FLY_MAX_Z = 24;
 const MAP_MAX_Z = 24;
+
+/* The most of the viewport that chrome (details panel, bottom sheet)
+   is allowed to claim when the close-up is fitted. Was 0.5; lowered so
+   the plot is fitted into more of the screen instead of a small
+   leftover strip, which is what made picks look small on a phone. */
+const MAX_RESERVE_SHARE = 0.35;
+
+/* ── FILL THE SCREEN, MEASURED ───────────────────────────────────
+   pickFrame ESTIMATES the zoom from the plot's size in metres, and an
+   estimate lands differently on every device (pixel ratio, sheet
+   height, imagery limits). After the flight lands, calibrateFill
+   MEASURES the plot's real on-screen box and corrects the zoom until
+   the plot takes FILL_TARGET of the visible area, so a pick looks the
+   same on a phone, a tablet and a desktop.
+
+   0.76 leaves room for the dimension figures around the plot. Raise it
+   (0.8, 0.85) for a tighter close-up; lower it if the figures clip. */
+const FILL_TARGET = 0.85;
 
 /* The vertical budget is squashed by cos(tilt). Floored so a camera
    tilted right over cannot drive the fit to nothing. */
@@ -513,6 +534,9 @@ export default function PlanMap({
   const flyRef = useRef(0);
   const winRef = useRef(null);
   const winPendingRef = useRef(false);   // FIX: one setWin in flight at a time
+
+  /* set below once zoomAtPlot exists; flyTo is defined before it */
+  const calibrateRef = useRef(() => {});
 
   /* the wall and dimension SVGs, written to directly rather than
      re-rendered — see paintWalls / paintDims */
@@ -984,7 +1008,11 @@ export default function PlanMap({
     const m = mapRef.current;
     const el = viewRef.current;
     const plot = name && layout.byName.get(name);
-    if (!m || !el || !plot || !plot.pts.length) return null;
+    /* `maps` can still be null here: a pick (or a stale mapRef from an
+       earlier mount) can arrive before the Google script has loaded.
+       The pick effect re-runs once `maps` arrives, because pickFrame's
+       identity changes with it. */
+    if (!m || !el || !maps || !plot || !plot.pts.length) return null;
 
     const xs = plot.pts.map((p) => p[0]);
     const ys = plot.pts.map((p) => p[1]);
@@ -1012,14 +1040,20 @@ export default function PlanMap({
 
     /* The reserve is honoured, but never allowed to starve the fit: a
        panel wider than the viewport would otherwise drive availW toward
-       the floor and hold the camera back on every pick. Half the
-       viewport is the most any chrome may claim. */
+       the floor and hold the camera back on every pick. MAX_RESERVE_SHARE
+       of the viewport is the most any chrome may claim. */
     const availW = Math.max(
-      el.clientWidth - Math.min(inset.left + inset.right, el.clientWidth * 0.5),
+      el.clientWidth - Math.min(
+        inset.left + inset.right,
+        el.clientWidth * MAX_RESERVE_SHARE,
+      ),
       160,
     );
     const availH = Math.max(
-      (el.clientHeight - Math.min(inset.top + inset.bottom, el.clientHeight * 0.5)) * ct,
+      (el.clientHeight - Math.min(
+        inset.top + inset.bottom,
+        el.clientHeight * MAX_RESERVE_SHARE,
+      )) * ct,
       160,
     );
 
@@ -1036,7 +1070,7 @@ export default function PlanMap({
        cos(tilt), so they are run back through that transform to become
        container px, then divided by the scale to become world units. */
     let aim = to;
-    const proj = m.getProjection();
+    const proj = m.getProjection && m.getProjection();
     if (proj) {
       const scale = 2 ** z;
       const risePx = (lift * LIFT_RESERVE * scale) / world;
@@ -1132,6 +1166,9 @@ export default function PlanMap({
            actually landed on. */
         flyingRef.current = false;
         if (overlayRef.current) overlayRef.current.draw();
+        /* two frames on: let the overlay commit at the landed zoom,
+           then measure the plot and close any gap */
+        requestAnimationFrame(() => requestAnimationFrame(() => calibrateRef.current()));
       }
     };
     flyRef.current = requestAnimationFrame(step);
@@ -1194,6 +1231,65 @@ export default function PlanMap({
     if (typeof m.moveCamera === 'function') m.moveCamera({ zoom: f.z, center: f.aim });
     else { m.setZoom(f.z); m.setCenter(f.aim); }
   }, [mapRef, pickFrame]);
+
+  /* Measures the raised plot's real box on screen and zooms until it
+     fills FILL_TARGET of the visible area. Flat view only (the box is
+     only true to scale square-on), and never against a zoom the user
+     chose by hand. Runs after every flight, so a late `reserve` is
+     covered too. */
+  const calibrateFill = useCallback(() => {
+    const m = mapRef.current;
+    const el = viewRef.current;
+    const name = selRef.current;
+    if (!m || !el || !name || manualZoomRef.current) return;
+    if (camRef.current.tilt > 0.02 || flyingRef.current) return;
+
+    let node = null;
+    try {
+      node = document.querySelector(`[data-plot="${window.CSS && CSS.escape ? CSS.escape(name) : name}"]`);
+    } catch (err) {
+      return;
+    }
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) return;
+
+    const availW = Math.max(
+      el.clientWidth - Math.min(inset.left + inset.right, el.clientWidth * MAX_RESERVE_SHARE),
+      160,
+    );
+    const availH = Math.max(
+      el.clientHeight - Math.min(inset.top + inset.bottom, el.clientHeight * MAX_RESERVE_SHARE),
+      160,
+    );
+    const k = Math.min(
+      (availW * FILL_TARGET) / r.width,
+      (availH * FILL_TARGET) / r.height,
+    );
+    const dz = Math.log2(k);
+    if (!Number.isFinite(dz) || Math.abs(dz) < 0.03) return;
+
+    const z0 = m.getZoom() || 18;
+    const z1 = clamp(z0 + dz, FLY_MIN_Z, MAP_MAX_Z);
+    if (Math.abs(z1 - z0) < 0.02) return;
+
+    const ms = reducedMotion() ? 1 : 260;
+    flyingRef.current = true;
+    const t0 = performance.now();
+    const step = (now) => {
+      const t = easeOut(Math.min(1, (now - t0) / ms));
+      zoomAtPlot(z0 + (z1 - z0) * t);
+      if (t < 1) {
+        flyRef.current = requestAnimationFrame(step);
+      } else {
+        flyingRef.current = false;
+        if (overlayRef.current) overlayRef.current.draw();
+      }
+    };
+    flyRef.current = requestAnimationFrame(step);
+  }, [mapRef, camRef, inset, zoomAtPlot, overlayRef]);
+
+  useEffect(() => { calibrateRef.current = calibrateFill; }, [calibrateFill]);
 
   /* ---------------------------------------------------------------
      Re-fitting after a tilt.
