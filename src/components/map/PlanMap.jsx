@@ -24,7 +24,7 @@ import {
 } from '../../theme/tokens';
 
 import '../../styles/home.css';
-import DocButtons from './DocButtons';
+
 export const DOWN_MS = 190;   // the old plot sinking
 export const UP_MS = 430;     // the new one rising
 export const FLY_MS = 900;    // the camera closing in on a pick
@@ -2727,15 +2727,25 @@ export default function PlanMap({
      whatever sits under it. The surface can't be pointerEvents:none —
      it has to catch the drags — so blind it for one call and hit-test
      the real DOM: the browser applies the container transform, which is
-     precisely the thing we can't compute by hand here. */
+     precisely the thing we can't compute by hand here.
+
+     elementsFromPoint, not elementFromPoint: it returns EVERY element
+     under the point, topmost first, so a plot is found even when one of
+     the overlay layers (the raised sheet, the scrim, the walls) sits
+     above it. elementFromPoint returned only the top one, and when that
+     was an overlay there was no plot in it — which is why tapping a
+     second plot while one was open did nothing. */
   const pickThrough = (e) => {
     const surface = e.currentTarget;
     const prev = surface.style.pointerEvents;
     surface.style.pointerEvents = 'none';
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const stack = document.elementsFromPoint(e.clientX, e.clientY);
     surface.style.pointerEvents = prev;
-    const hit = el && el.closest && el.closest('[data-plot]');
-    return hit ? hit.getAttribute('data-plot') : null;
+    for (let i = 0; i < stack.length; i += 1) {
+      const hit = stack[i].closest && stack[i].closest('[data-plot]');
+      if (hit) return hit.getAttribute('data-plot');
+    }
+    return null;
   };
 
   const endOrbit = (e) => {
@@ -3016,7 +3026,9 @@ export default function PlanMap({
         onReset={resetHeading}
       />
 
-      <DocButtons top={FIT_PAD.top + 4 + 44 + 10} right={safeArea('right', 12)} />
+      {/* The NA order and the common documents now live in the plot
+          details panel (DetailPanel), so there is no separate documents
+          control on the map. */}
 
       {/* Zoom, on screen, while a plot is raised.
 
@@ -3092,7 +3104,7 @@ export default function PlanMap({
           style={{
             font: `500 13px/1 ${MONO}`,
             color: filterHits ? CANVAS : '#1b1b1a',
-            background: filterHits ? ACCENT :ACCENT ,
+            background: ACCENT,
             border: `1px solid ${filterHits ? ACCENT : HAIR}`,
             borderRadius: 10,
             padding: '11px 10px',
