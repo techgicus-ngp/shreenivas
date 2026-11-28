@@ -24,7 +24,7 @@ import {
 } from '../../theme/tokens';
 
 import '../../styles/home.css';
-
+import DocButtons from '../DocButtons';
 export const DOWN_MS = 190;   // the old plot sinking
 export const UP_MS = 430;     // the new one rising
 export const FLY_MS = 900;    // the camera closing in on a pick
@@ -3065,7 +3065,7 @@ export default function PlanMap({
         selectedRef={selRef}
         onReset={resetHeading}
       />
-
+<DocButtons top={FIT_PAD.top + 4 + 44 + 10} right={safeArea('right', 12)} />
       {/* The NA order and the common documents now live in the plot
           details panel (DetailPanel), so there is no separate documents
           control on the map. */}
