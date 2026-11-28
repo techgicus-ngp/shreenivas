@@ -24,7 +24,7 @@ import {
 } from '../../theme/tokens';
 
 import '../../styles/home.css';
-import DocButtons from '../DocButtons';
+import DocButtons from './DocButtons';
 export const DOWN_MS = 190;   // the old plot sinking
 export const UP_MS = 430;     // the new one rising
 export const FLY_MS = 900;    // the camera closing in on a pick
