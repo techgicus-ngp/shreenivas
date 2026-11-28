@@ -271,6 +271,10 @@ const ZOOM_STEP_MS = 220;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 24;
 
+/* A press that travels further than this is a drag, not a tap, and
+   never picks a plot. */
+const TAP_SLOP_PX = 8;
+
 /* ── THE DIMENSION FIGURES ────────────────────────────────────────
    Drawn in SCREEN space, not on the ground.
 
@@ -563,6 +567,9 @@ export default function PlanMap({
   const dragRef = useRef(null);
   const pinchRef = useRef(new Map());
   const pinchStartRef = useRef(null);
+  /* true from the moment a second finger lands until every finger is
+     up: that whole touch is a pinch and can never pick a plot */
+  const multiTouchRef = useRef(false);
   const wheelRef = useRef(0);
 
   /* smooth wheel zoom: where the zoom is heading, and the loop that
@@ -2476,6 +2483,15 @@ export default function PlanMap({
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
 
+    /* The first finger of a new touch starts from a clean slate, so a
+       finger the browser never reported lifting cannot leave a stale
+       pinch behind that blocks every later tap. */
+    if (e.isPrimary) {
+      pinchRef.current.clear();
+      pinchStartRef.current = null;
+      multiTouchRef.current = false;
+    }
+
     pinchRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (pinchRef.current.size === 2) {
@@ -2487,6 +2503,9 @@ export default function PlanMap({
         zoom: mapRef.current?.getZoom?.() || 18,
       };
       dragRef.current = null;
+      /* This touch is a pinch, not a tap. Stays set until EVERY finger
+         is up, so neither finger's release can pick a plot. */
+      multiTouchRef.current = true;
       return;
     }
 
@@ -2528,7 +2547,9 @@ export default function PlanMap({
     if (!g) return;
     const dx = e.clientX - g.x;
     const dy = e.clientY - g.y;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) g.moved = true;
+    /* 8 px, not 3: a finger resting on a phone screen wobbles more than
+       3 px, and a tap that "moved" is treated as a drag, not a pick */
+    if (Math.abs(dx) > TAP_SLOP_PX || Math.abs(dy) > TAP_SLOP_PX) g.moved = true;
     applyTurn(dx * 0.008, -dy * 0.006, g);
   };
 
@@ -2753,10 +2774,22 @@ export default function PlanMap({
 
     pinchRef.current.delete(e.pointerId);
 
-    // A pinch must never become a plot click when the second finger lifts.
-    if (pinchStartRef.current) {
+    /* A PINCH MUST NEVER BECOME A PLOT PICK.
+
+       This is the bug in the video: pinch out to look around, lift both
+       fingers, and the plot under the LAST finger (45, then 46, then
+       47) was selected and the camera flew back in on it.
+
+       Lifting the first finger of a pinch cleared pinchStartRef, so by
+       the time the second finger lifted there was no pinch left on
+       record and dragRef was already null — and the code fell straight
+       through to pickThrough. multiTouchRef remembers that this touch
+       ever had two fingers, and holds until the LAST finger is up. */
+    if (multiTouchRef.current || pinchStartRef.current) {
       if (pinchRef.current.size < 2) pinchStartRef.current = null;
+      if (pinchRef.current.size === 0) multiTouchRef.current = false;
       dragRef.current = null;
+      tapRef.current = null;
       touched.current = Date.now();
       syncTurned();
       bump((n) => n + 1);
@@ -2769,6 +2802,13 @@ export default function PlanMap({
     bump((n) => n + 1);
 
     if (g && g.moved) { refitPick(); return; }
+
+    /* No one-finger press on record = this release is not a tap at all
+       (the tail of a pinch, a cancelled touch, a stray pointer-up).
+       Only a real press-and-release on the same spot may select. A
+       cancelled touch (the browser took it for a scroll, a call came
+       in) is not a tap either. */
+    if (!g || e.type === 'pointercancel') return;
 
     /* A second tap in the same place, quickly, means closer — the
        gesture everyone tries first on a map, and the one that needs no
