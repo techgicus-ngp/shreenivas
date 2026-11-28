@@ -109,7 +109,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import LOGO_SRC from "../assets/logo.jpeg";
+import LOGO_SRC from "../assets/logo.png";
 
 
 /* ---------------------------------------------------------------

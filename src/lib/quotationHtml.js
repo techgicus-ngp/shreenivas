@@ -23,7 +23,7 @@
  * against; whatever reaches the document has to be absolute or inlined.
  */
 
-import logoAsset from '../assets/logo.jpeg';
+import logoAsset from '../assets/logo.png';
 
 const BLUE = '#1565C0';
 const DEEP = '#0D47A1';

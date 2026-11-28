@@ -409,7 +409,7 @@
 //   EmptyState, FilterChip, HomePartsStyles, MapIcon, NavRail, SearchBar,
 // } from '../components/HomeParts';
 // import { ACCENT, HAIR, PANEL } from '../theme/tokens';
-// import logo from '../assets/logo.jpeg';
+// import logo from '../assets/logo.png';
 // import '../styles/home.css';
 
 // const TABS = [{ key: 'maps', label: 'Layout maps', icon: <MapIcon /> }];
@@ -585,7 +585,7 @@
 // import { Link } from "react-router-dom";
 
 // import { fetchMaps } from "../services/mapsService";
-// import logo from "../assets/logo.jpeg";
+// import logo from "../assets/logo.png";
 
 // /* Must read exactly as the name printed in the logo. */
 // const BRAND = import.meta.env.VITE_SITE_NAME || "Shivarpan Developer";
@@ -808,7 +808,7 @@
 // import { Link } from "react-router-dom";
 
 // import { fetchMaps } from "../services/mapsService";
-// import logo from "../assets/logo.jpeg";
+// import logo from "../assets/logo.png";
 // import gauriNagar from "../assets/gaurinagar.png";
 // import maheshNagar from "../assets/maheshnagar.png";
 // import shivgad from "../assets/shivgad.jpeg";
@@ -1059,7 +1059,7 @@
 // import { Link } from "react-router-dom";
 
 // import { fetchMaps } from "../services/mapsService";
-// import logo from "../assets/logo.jpeg";
+// import logo from "../assets/logo.png";
 // import gauriNagar from "../assets/gaurinagar.png";
 // import maheshNagar from "../assets/maheshnagar.png";
 // import shivgad from "../assets/shivgad.jpeg";
@@ -1383,12 +1383,12 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { fetchMaps } from "../services/mapsService";
-import logo from "../assets/logo.jpeg";
+import logo from "../assets/logo.png";
 import banner from "../assets/banner.png"; // save the Shivarpan Builders banner image here
 
 import footerBg from "../assets/footer.png"; // bottom strip cropped from the banner
 
-const BRAND = import.meta.env.VITE_SITE_NAME || "Shreenivas Developers";
+const BRAND = import.meta.env.VITE_SITE_NAME || "Matoshree Developers";
 const ARROW = "M5 12h14M13 6l6 6-6 6";
 const SHARE =
   "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14";

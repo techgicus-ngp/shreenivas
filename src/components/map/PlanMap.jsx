@@ -24,7 +24,7 @@ import {
 } from '../../theme/tokens';
 
 import '../../styles/home.css';
-
+import DocButtons from './DocButtons';
 export const DOWN_MS = 190;   // the old plot sinking
 export const UP_MS = 430;     // the new one rising
 export const FLY_MS = 900;    // the camera closing in on a pick
@@ -3016,6 +3016,8 @@ export default function PlanMap({
         onReset={resetHeading}
       />
 
+      <DocButtons top={FIT_PAD.top + 4 + 44 + 10} right={safeArea('right', 12)} />
+
       {/* Zoom, on screen, while a plot is raised.
 
           Not decoration and not a fallback for a broken gesture: it is
@@ -3089,8 +3091,8 @@ export default function PlanMap({
           className="filter-toggle-btn"
           style={{
             font: `500 13px/1 ${MONO}`,
-            color: filterHits ? CANVAS : '#E7E1D5',
-            background: filterHits ? ACCENT : CANVAS,
+            color: filterHits ? CANVAS : '#1b1b1a',
+            background: filterHits ? ACCENT :ACCENT ,
             border: `1px solid ${filterHits ? ACCENT : HAIR}`,
             borderRadius: 10,
             padding: '11px 10px',

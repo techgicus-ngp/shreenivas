@@ -7,7 +7,7 @@ import { db } from '../firebase/config';
 import { MAP_ID } from '../config/site';
 import { fromDoc } from '../lib/Quote';
 
-export const QUOTATIONS = 'shreenivas_booking_forms';
+export const QUOTATIONS = 'Matoshree_booking_forms';
 
 const col = () => collection(db, QUOTATIONS);
 

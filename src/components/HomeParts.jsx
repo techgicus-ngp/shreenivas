@@ -22,7 +22,7 @@
 // // than merging them.
 
 // import React, { useState } from 'react';
-// import logo from '../assets/logo.jpeg';
+// import logo from '../assets/logo.png';
 
 // export const inr = new Intl.NumberFormat('en-IN', {
 //   style: 'currency',
@@ -790,7 +790,7 @@
 
 
 import React, { useState } from 'react';
-import logo from '../assets/logo.jpeg';
+import logo from '../assets/logo.png';
 
 export const inr = new Intl.NumberFormat('en-IN', {
   style: 'currency',

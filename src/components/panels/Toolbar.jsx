@@ -2,8 +2,8 @@
 // import React from 'react';
 // import { useNavigate } from 'react-router-dom';
 
-// import prospera from '../../assets/logo.jpeg';
-// import infra from '../../assets/map-logo.jpeg';
+// import prospera from '../../assets/logo.png';
+// import infra from '../../assets/map-logo.png';
 // import '../../styles/home.css';
 
 // export default function MapHeader({ onBack }) {
@@ -31,8 +31,8 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import prospera from '../../assets/logo.jpeg';
-// import infra from '../../assets/map-logo.jpeg';
+import prospera from '../../assets/logo.png';
+// import infra from '../../assets/map-logo.png';
 import '../../styles/home.css';
 
 export default function MapHeader({ onBack, showBack }) {

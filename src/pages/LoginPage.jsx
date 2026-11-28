@@ -15,7 +15,7 @@ import { useAuth } from '../context/Authcontext';
 import { useToast } from '../components/Toast';
 import Field from '../components/Field';
 import '../styles/login.css';
-import logo from "../assets/logo.jpeg"
+import logo from "../assets/logo.png"
 
 const ORBS = [
   { rx: 0.12, ry: 0.10, r: 130, opacity: 0.07, dur: 8 },
